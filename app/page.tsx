@@ -1,101 +1,216 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+import { useEffect, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion"; // For animations
+
+export default function AuthPage() {
+  const { data: session, status } = useSession(); // Check authentication status
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard"); // Redirect if already logged in
+    }
+  }, [status, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (isRegistering) {
+        if (password !== confirmPassword) {
+          setError("Passwords do not match!");
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (res.ok) {
+          alert("Account created! You can now log in.");
+          setIsRegistering(false);
+          setEmail("");
+          setPassword("");
+          setConfirmPassword("");
+        } else {
+          const data = await res.json();
+          setError(data.message || "Error creating account.");
+        }
+      } else {
+        const res = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        });
+
+        if (res?.error) {
+          setError("Invalid credentials");
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-10 h-10 border-4 border-t-transparent border-white rounded-full"
         />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+      </div>
+    );
+  }
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md bg-gray-800 rounded-xl shadow-2xl p-8 relative overflow-hidden"
+      >
+        {/* Subtle background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-700/20 to-gray-900/20 pointer-events-none" />
+
+        <motion.h1
+          initial={{ y: -20 }}
+          animate={{ y: 0 }}
+          className="text-3xl font-bold text-center text-white mb-8 relative z-10"
+        >
+          {isRegistering ? "Create Account" : "Welcome Back"}
+        </motion.h1>
+
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-500/20 border border-red-500 text-red-200 p-3 rounded-md mb-6 text-sm text-center"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            {error}
+          </motion.div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+          <div>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+              required
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+          <div>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+              required
+            />
+          </div>
+          {isRegistering && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                required
+              />
+            </motion.div>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400 transition-all duration-300 flex items-center justify-center relative overflow-hidden"
           >
-            Read our docs
-          </a>
+            {loading ? (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-5 h-5 border-2 border-t-transparent border-white rounded-full"
+              />
+            ) : (
+              isRegistering ? "Register" : "Login"
+            )}
+          </button>
+        </form>
+
+        <div className="flex justify-between items-center mt-6 text-sm text-gray-400 relative z-10">
+          <span>
+            {isRegistering ? "Already have an account?" : "New here?"}
+          </span>
+          <button
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setError(null);
+              setEmail("");
+              setPassword("");
+              setConfirmPassword("");
+            }}
+            className="text-blue-400 hover:text-blue-300 transition-colors duration-200"
+          >
+            {isRegistering ? "Login" : "Register"}
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      </motion.div>
+
+      {/* Background particles effect */}
+      <div className="fixed inset-0 pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute bg-blue-500/10 rounded-full"
+            initial={{
+              x: Math.random() * 100 + "vw",
+              y: Math.random() * 100 + "vh",
+              scale: Math.random() * 0.5 + 0.5,
+            }}
+            animate={{
+              y: "-10vh",
+              opacity: [0, 1, 0],
+            }}
+            transition={{
+              duration: Math.random() * 5 + 5,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={{ width: "8px", height: "8px" }}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        ))}
+      </div>
     </div>
   );
 }
