@@ -2,6 +2,19 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Box,
+} from "@mui/material";
 
 // Define Product Type
 interface Product {
@@ -39,6 +52,7 @@ export default function ProductsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -47,13 +61,11 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     const res = await axios.get<Product[]>("/api/products");
-    console.log(res.data);
     setProducts(res.data);
   };
 
   const fetchSources = async () => {
     const res = await axios.get<Source[]>("/api/sources");
-    console.log(res.data);
     setSources(res.data);
   };
 
@@ -61,14 +73,20 @@ export default function ProductsPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = { ...formData, price: Number(formData.price), discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined, buyingPrice: Number(formData.buyingPrice) };
+      const data = {
+        ...formData,
+        price: Number(formData.price),
+        discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
+        buyingPrice: Number(formData.buyingPrice),
+      };
       if (isEditing && editId) {
-        await axios.put(`/api/products/${editId}`, data);
+        await axios.put(`/api/products`, { id: editId, data: data });
       } else {
         await axios.post("/api/products", data);
       }
       fetchProducts();
       resetForm();
+      setDialogOpen(false);
     } catch (error) {
       console.error(error);
     } finally {
@@ -78,7 +96,7 @@ export default function ProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure?")) {
-      await axios.delete(`/api/products/${id}`);
+      await axios.delete(`/api/products?id=${id}`);
       fetchProducts();
     }
   };
@@ -96,50 +114,251 @@ export default function ProductsPage() {
       description: product.description || "",
       shortDescription: product.shortDescription || "",
     });
+    setDialogOpen(true);
   };
 
   const resetForm = () => {
     setIsEditing(false);
     setEditId(null);
-    setFormData({ name: "", price: "", discountPrice: "", buyingPrice: "", source: "", image: "", description: "", shortDescription: "" });
+    setFormData({
+      name: "",
+      price: "",
+      discountPrice: "",
+      buyingPrice: "",
+      source: "",
+      image: "",
+      description: "",
+      shortDescription: "",
+    });
+  };
+
+  const handleOpenDialog = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    resetForm();
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto bg-gray-800 rounded-xl p-6 shadow-2xl">
-        <h1 className="text-3xl font-bold text-white mb-6">Manage Products</h1>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <input type="text" placeholder="Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white" required />
-          <input type="number" placeholder="Price" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white" required />
-          <input type="number" placeholder="Discount Price" value={formData.discountPrice} onChange={(e) => setFormData({ ...formData, discountPrice: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white" />
-          <input type="number" placeholder="Buying Price" value={formData.buyingPrice} onChange={(e) => setFormData({ ...formData, buyingPrice: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white" required />
-          <select value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white" required>
-            <option value="">Select Source</option>
-            {sources.map((source) => <option key={source._id} value={source._id}>{source.name}</option>)}
-          </select>
-          <input type="text" placeholder="Image URL" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white" />
-          <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white col-span-2" />
-          <textarea placeholder="Short Description" value={formData.shortDescription} onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })} className="p-3 bg-gray-700 border border-gray-600 rounded-md text-white col-span-2" />
-          <button type="submit" disabled={loading} className="col-span-2 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">{loading ? "Saving..." : isEditing ? "Update" : "Add Product"}</button>
-        </form>
+    <div className="bg-gray-900 p-4 h-full">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="max-w-4xl mx-auto bg-gray-800 rounded-xl p-6 shadow-2xl h-full flex flex-col"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-white">Manage Products</h1>
+          <Button
+            variant="contained"
+            onClick={handleOpenDialog}
+            sx={{
+              background: 'linear-gradient(45deg, #9333ea, #ec4899)',
+              '&:hover': { 
+                background: 'linear-gradient(45deg, #7e22ce, #db2777)',
+              },
+            }}
+          >
+            Add Product
+          </Button>
+        </div>
 
         {/* Products List */}
-        <div className="space-y-4">
+        <div className="space-y-4 flex-grow overflow-auto">
           {products.map((product) => (
-            <motion.div key={product._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-between items-center bg-gray-700 p-4 rounded-md">
+            <motion.div
+              key={product._id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-between items-center bg-gray-700 p-4 rounded-md"
+            >
               <div>
                 <h2 className="text-white font-semibold">{product.name}</h2>
-                <p className="text-gray-400">Price: ${product.price} | Source: {product.source?.name ?? ""}</p>
+                <p className="text-gray-400">
+                  Price: ${product.price} | Source: {product.source?.name ?? ""}
+                </p>
               </div>
               <div className="space-x-2">
-                <button onClick={() => handleEdit(product)} className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600">Edit</button>
-                <button onClick={() => handleDelete(product._id)} className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600">Delete</button>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  onClick={() => handleEdit(product)}
+                  size="small"
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => handleDelete(product._id)}
+                  size="small"
+                >
+                  Delete
+                </Button>
               </div>
             </motion.div>
           ))}
         </div>
+
+        {/* Dialog Form */}
+        <Dialog
+          open={dialogOpen}
+          onClose={handleCloseDialog}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: { 
+              bgcolor: '#1f2937', 
+              color: 'white', 
+              borderRadius: 2,
+              width: { xs: '90%', sm: '80%', md: '70%', lg: '60%' },
+              maxWidth: '900px',
+              m: 'auto'
+            }
+          }}
+        >
+          <DialogTitle sx={{ bgcolor: '#374151', py: 2 }}>
+            {isEditing ? "Edit Product" : "Add New Product"}
+          </DialogTitle>
+          <form onSubmit={handleSubmit}>
+            <DialogContent 
+              sx={{ 
+                py: 3,
+                px: { xs: 2, sm: 3, md: 4 },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 2,
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: '1fr 1fr',
+                    md: '1fr 1fr',
+                  },
+                }}
+              >
+                <TextField
+                  label="Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  variant="outlined"
+                  fullWidth
+                  sx={{ input: { color: 'white' }, label: { color: 'gray' } }}
+                />
+                <TextField
+                  label="Price"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                  variant="outlined"
+                  fullWidth
+                  sx={{ input: { color: 'white' }, label: { color: 'gray' } }}
+                />
+                <TextField
+                  label="Discount Price"
+                  type="number"
+                  value={formData.discountPrice}
+                  onChange={(e) => setFormData({ ...formData, discountPrice: e.target.value })}
+                  variant="outlined"
+                  fullWidth
+                  sx={{ input: { color: 'white' }, label: { color: 'gray' } }}
+                />
+                <TextField
+                  label="Buying Price"
+                  type="number"
+                  value={formData.buyingPrice}
+                  onChange={(e) => setFormData({ ...formData, buyingPrice: e.target.value })}
+                  required
+                  variant="outlined"
+                  fullWidth
+                  sx={{ input: { color: 'white' }, label: { color: 'gray' } }}
+                />
+                <FormControl fullWidth>
+                  <InputLabel sx={{ color: 'gray' }}>Source</InputLabel>
+                  <Select
+                    value={formData.source}
+                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                    required
+                    sx={{ color: 'white' }}
+                  >
+                    <MenuItem value="">Select Source</MenuItem>
+                    {sources.map((source) => (
+                      <MenuItem key={source._id} value={source._id}>
+                        {source.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Image URL"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  variant="outlined"
+                  fullWidth
+                  sx={{ input: { color: 'white' }, label: { color: 'gray' } }}
+                />
+                <TextField
+                  label="Description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  multiline
+                  rows={3}
+                  variant="outlined"
+                  fullWidth
+                  sx={{ 
+                    textarea: { color: 'white' }, 
+                    label: { color: 'gray' },
+                    gridColumn: { xs: 'span 1', sm: 'span 2' },
+                  }}
+                />
+                <TextField
+                  label="Short Description"
+                  value={formData.shortDescription}
+                  onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
+                  multiline
+                  rows={2}
+                  variant="outlined"
+                  fullWidth
+                  sx={{ 
+                    textarea: { color: 'white' }, 
+                    label: { color: 'gray' },
+                    gridColumn: { xs: 'span 1', sm: 'span 2' },
+                  }}
+                />
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ p: { xs: 2, md: 3 } }}>
+              <Button 
+                onClick={handleCloseDialog} 
+                color="inherit"
+                sx={{ 
+                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={loading}
+                sx={{
+                  background: 'linear-gradient(45deg, #9333ea, #ec4899)',
+                  '&:hover': { 
+                    background: 'linear-gradient(45deg, #7e22ce, #db2777)',
+                  },
+                  px: 3,
+                }}
+              >
+                {loading ? "Saving..." : isEditing ? "Update" : "Add"}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
       </motion.div>
     </div>
   );

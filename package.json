@@ -12,6 +12,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^6.4.5",
+    "@react-pdf/renderer": "^4.2.2",
     "@types/bcrypt": "^5.0.2",
     "@types/mongoose": "^5.11.96",
     "@types/next-auth": "^3.13.0",
